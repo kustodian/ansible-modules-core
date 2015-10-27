@@ -138,19 +138,26 @@ def check_command(commandline):
                   'ln': 'state=link', 'mkdir': 'state=directory',
                   'rmdir': 'state=absent', 'rm': 'state=absent', 'touch': 'state=touch' }
     commands  = { 'hg': 'hg', 'curl': 'get_url or uri', 'wget': 'get_url or uri',
-                  'svn': 'subversion', 'service': 'service',
+                  'svn': 'subversion',
                   'mount': 'mount', 'rpm': 'yum, dnf or zypper', 'yum': 'yum', 'apt-get': 'apt',
                   'tar': 'unarchive', 'unzip': 'unarchive', 'sed': 'template or lineinfile',
                   'dnf': 'dnf', 'zypper': 'zypper' }
+    complex_commands = { 'service': { 'regex': r'service\s+(\S+)\s+(start|stop|restart|reload)\s*', 'module': 'service' },
+                         'systemctl': { 'regex': r'systemctl\s+(start|stop|restart|reload)\s+', 'module': 'service' } }
     become   = [ 'sudo', 'su', 'pbrun', 'pfexec', 'runas' ]
     warnings = list()
     command = os.path.basename(commandline.split()[0])
     if command in arguments:
-        warnings.append("Consider using file module with %s rather than running %s" % (arguments[command], command))
+        warnings.append("Consider using 'file' module with '%s' rather than running '%s'" % (arguments[command], command))
     if command in commands:
-        warnings.append("Consider using %s module rather than running %s" % (commands[command], command))
+        warnings.append("Consider using '%s' module rather than running '%s'" % (commands[command], command))
     if command in become:
-        warnings.append("Consider using 'become', 'become_method', and 'become_user' rather than running %s" % (command,))
+        warnings.append("Consider using 'become', 'become_method', and 'become_user' rather than running '%s'" % (command,))
+    # Check if there are commands which require special arguments
+    # e.g. 'service nginx restart', 'systemctl restart nginx',...
+    for cmd_name, cmd_dict in complex_commands.iteritems():
+        if re.match(cmd_dict['regex'], commandline):
+            warnings.append("Consider using '%s' module rather than running '%s'" % (cmd_dict['module'], cmd_name))
     return warnings
 
 
